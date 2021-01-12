@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+
+{% block page_title %}
+<!-- Title Page-->
+<title>Dashboard Home</title>
+{% endblock page_title %}
+
+{% block main_content %}
+            <!-- MAIN CONTENT-->
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card border border-secondary">
+                        
+                        <div class="card-body">
+                            <form class="form-header" action="" method="POST">
+                                <input class="au-input" type="text" id="nation_name" placeholder="Input Nation Name..." />                                        
+                                <button class="au-btn--submit" type="button" id="btn_search">
+                                    <i class="zmdi zmdi-search"></i>
+                                </button>
+                            </form>
+                            <br>
+                            <div class="table-responsive m-b-30">
+                                <table id="nation_table" class="table table-borderless table-striped table-earning">
+                                    <thead>
+                                        <tr>
+                                            <th>Nation</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border border-secondary">
+                        <div class="card-header">
+                            <strong class="card-title" id="company_card_title">Station Name</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive m-b-30">
+                                <table id="station_table" class="table table-borderless table-striped table-earning">
+                                    <thead>
+                                        <tr>
+                                            <th>Nation</th>
+                                            <th>Station</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="au-card m-b-30">
+                        <div class="au-card-inner">
+                            <h3 class="title-2 m-b-40">Air Quality By Year</h3>
+                            <canvas id="air_line_chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="au-card m-b-30">
+                        <div class="au-card-inner">
+                            <h3 class="title-2 m-b-40">Air Quality After COVID19</h3>
+                            <canvas id="stock_bar_chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- END MAIN CONTENT-->
+{% endblock main_content %}
+
+{% block custom_js %}
+
+<script type="text/javascript">
+
+$(function() {
+    // 검색 버튼 클릭 처리
+    list_td_names = ['nation'];   // 수정해야할 부분들 표기
+    list_tr_html_str = `<tr>
+                        <td></td>
+                    </tr>`;
+
+    $('#btn_search').on('click', function(event) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        var key = $('#nation_name').val(); // 입력한 검색어 읽기
+
+        if (!key){
+            alert('검색어를 입력하세요');
+            return;
+        }
+        
+        // alert(key);
+        $.ajax({
+            "url": "/dashboard/search/" + key,
+            "method": "GET",
+            "dataType": "json",
+            "success": function(data, status, xhr) {
+                
+                $('#nation_table tbody').empty() // 기존의 TR 태그 제거
+
+                for (var idx = 0; idx < data.length; idx++) { 
+                    var tr = $(list_tr_html_str);   // 테이블 행 만들기
+                    tr.attr('data-symbol', data[idx].symbol) // 테이블 행에 데이터 저장
+                    var tds = tr.find('td'); // tr 하위의 td 목록 찾기
+                    tds.each(function(i, td) { // python enumerate
+                        $(td).text(data[idx][list_td_names[i]])
+                    });
+                    $('#nation_table tbody').append(tr); // 위에서 만든 행을 테이블에 추가
+                }
+
+            }, 
+            "error": function(xhr, status, err) {
+                alert(err);
+            }
+        });
+    });
+
+    station_list_td_names = ['nation', 'stn_nm'];
+    station_list_tr_html_str = `<tr>
+                        <td></td>
+                        <td></td>
+                    </tr>`;
+
+    $('#nation_table').on('click', 'tr', function(event) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        // var key = $('#nation_name').val(); 
+        // var value = $(this).attr('data-symbol');
+
+        var symbol = $('#nation_name').val(); // 꼭 수정이 필요하다 !! 클릭 데이터를 가져오도록 !!
+        // alert(symbol);
+        // alert(key);
+        $.ajax({
+            "url": "/dashboard/stn/" + symbol,
+            "method": "GET",
+            "dataType": "json",
+            "success": function(data, status, xhr) {
+                
+                $('#station_table tbody').empty()
+
+                for (var idx = 0; idx < data.length; idx++) { 
+                    var tr = $(station_list_tr_html_str);
+                    tr.attr('data-stn', data[idx].stn_nm)
+                    var tds = tr.find('td');
+                    tds.each(function(i, td) { 
+                        $(td).text(data[idx][station_list_td_names[i]])
+                    });
+                    $('#station_table tbody').append(tr);                     
+                }
+                
+            }, 
+            "error": function(xhr, status, err) {
+                alert(err);
+            }
+        });
+    });
+
+    $('#station_table').on('click', 'tr', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        var key = $(this).attr('data-stn');
+        // alert(tr.attr('data-stn'));
+
+        $.ajax({
+            "url": "/dashboard/detail/" + key,
+            "method": "GET",
+            "success": function(data, status, xhr) {
+                show_chart(data) 
+                },                
+            "error": function(xhr, status, err) {
+                alert(err);
+            }
+        });
+
+    // chart
+        function show_chart(data) {
+            var labels = []
+            var pm10 = []
+            var pm25 = []
+
+            for (var i = 0; i < data[0].stats.length; i++) {
+                labels.push(data[0].stats[i][1]);
+                pm10.push(data[0].stats[i][7]);
+                pm25.push(data[0].stats[i][8]);
+            }
+
+
+            // for (var i = 0; i < data[0].stats.length; i++) {
+            //     labels.push(data[0].stats[i][1]);   // 날짜 목록
+            //     y_2015.push(data[0].stats[i][2]); // pm10
+            //     y_2016.push(data[0].stats[i][3]); // pm10
+            //     y_2017.push(data[0].stats[i][4]); // pm10
+            //     y_2018.push(data[0].stats[i][5]); // pm10
+            //     y_2019.push(data[0].stats[i][6]); // pm10
+            //     y_2020.push(data[0].stats[i][7]); // pm10
+            // }
+
+            show_air_line_chart(labels, [pm10, pm25]);
+            // show_stock_bar_chart(labels, [amount_list]);
+        }
+    });
+    
+    var line_chart = null;
+    function show_air_line_chart(labels, datasets){
+        //line chart
+        var ctx = $('#air_line_chart'); // 그래프가 표시될 HTML 요소
+        if (ctx) {
+        ctx.height = 150;
+        
+        if (line_chart) {                 // 기존 차트를 삭제
+            line_chart.destroy();
+        }
+
+        line_chart = new Chart(ctx, {     // my_chart -->> line_chart
+            type: 'line',
+            data: {
+            labels: labels,   // x축
+            defaultFontFamily: "Poppins",
+            datasets: [{           // y축
+                label: "Close by Day",
+                data: datasets[0],
+                backgroundColor: 'transparent',
+                borderColor: 'rgba(220,53,69,0.75)',
+                borderWidth: 3,
+                pointStyle: 'circle',
+                pointRadius: 3,
+                pointBorderColor: 'transparent',
+                pointBackgroundColor: 'rgba(220,53,69,0.75)',
+                },{           // y축
+                label: "start by Day",
+                data: datasets[1],
+                backgroundColor: 'transparent',
+                borderColor: 'rgba(40,167,69,0.75)',
+                borderWidth: 3,
+                pointStyle: 'circle',
+                pointRadius: 3,
+                pointBorderColor: 'transparent',
+                pointBackgroundColor: 'rgba(40,167,69,0.75)',
+                }]
+            },
+            options: {
+            responsive: true,
+            tooltips: {
+                mode: 'index',
+                titleFontSize: 12,
+                titleFontColor: '#000',
+                bodyFontColor: '#000',
+                backgroundColor: '#fff',
+                titleFontFamily: 'Poppins',
+                bodyFontFamily: 'Poppins',
+                cornerRadius: 3,
+                intersect: false,
+            },
+            legend: {
+                display: false,
+                labels: {
+                usePointStyle: true,
+                fontFamily: 'Poppins',
+                },
+            },
+            scales: {
+                xAxes: [{
+                display: true,
+                gridLines: {
+                    display: false,
+                    drawBorder: false
+                },
+                scaleLabel: {
+                    display: false,
+                    labelString: 'Month'
+                },
+                ticks: {
+                    fontFamily: "Poppins"
+                }
+                }],
+                yAxes: [{
+                display: true,
+                gridLines: {
+                    display: false,
+                    drawBorder: false
+                },
+                scaleLabel: {
+                    display: true,
+                    labelString: 'Value',
+                    fontFamily: "Poppins"
+
+                },
+                ticks: {
+                    fontFamily: "Poppins"
+                }
+                }]
+            },
+            title: {
+                display: false,
+                text: 'Normal Legend'
+            }
+            }
+        });
+        }
+    }
+});
+    // end chart
+
+// -------------------------------- module indentation
+
+
+
+</script>
+
+{% endblock custom_js %}
