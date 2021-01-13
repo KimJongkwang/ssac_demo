@@ -30,8 +30,12 @@ class AirDetail(View):
     def get(self, request, key):
         repository = NationRepository()
         clicked_staion = repository.show_data_by_station(key)
-        # ["nation", "obs_dt", "stn_nm", "no2", "o3", "co2", "so2", "pm10", "pm25"]
-        # clicked_staion 
-        # year = 
         json_station = json.dumps(clicked_staion, ensure_ascii=False, cls=DjangoJSONEncoder)
         return HttpResponse(json_station, content_type="application/json")
+
+class CovidChart(View):
+    def get(self, request, key):
+        repository = NationRepository()
+        global_covid = repository.global_covid_data(key)
+        json_covid = json.dumps(global_covid, ensure_ascii=False, cls=DjangoJSONEncoder)
+        return HttpResponse(json_covid, content_type="application/json")

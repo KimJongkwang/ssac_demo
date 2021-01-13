@@ -51,11 +51,32 @@ class NationRepository:
         conn = pymysql.connect(**self.connection_info)
         cursor = conn.cursor()
 
-        sql = "select nation, obs_dt, stn_nm, no2, o3, co2, so2, pm10, pm25 from air_quality where stn_nm like %s"
+        sql = "select nation, obs_dt, stn_nm, no2, o3, co2, so2, pm10, pm25 from air_quality where stn_nm like %s order by obs_dt"
         cursor.execute(sql, (stn,))
 
         rows = cursor.fetchall() # 반환 값은 tuple (...)
         keys = ["nation", "obs_dt", "stn_nm", "no2", "o3", "co2", "so2", "pm10", "pm25"]
+        
+        result = []
+        for row in rows:
+            row_dict = { key:value for key, value in zip(keys, row) }
+            result.append(row_dict)
+
+        conn.close()
+
+        return result
+
+    def global_covid_data(self, name_key):
+        import pymysql
+
+        conn = pymysql.connect(**self.connection_info)
+        cursor = conn.cursor()
+
+        sql = "select stdday, nat, nat_def_cnt from global_def_cnt where nat like %s order by stdday"
+        cursor.execute(sql, (name_key,))
+
+        rows = cursor.fetchall() # 반환 값은 tuple (...)
+        keys = ["stdday", "nat", "nat_def_cnt"]
         
         result = []
         for row in rows:

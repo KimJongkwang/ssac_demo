@@ -60,10 +60,63 @@
             </div>
             <div class="row">
                 <div class="col-lg-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Air Quality By Year</h3>
+                        </div>
                     <div class="au-card m-b-30">
-                        <div class="au-card-inner">
-                            <h3 class="title-2 m-b-40">Air Quality By Year</h3>
-                            <canvas id="air_line_chart"></canvas>
+                        <canvas id="pm10_line_chart"></canvas>
+                        <!-- <div class="default-tab">
+                            <nav>
+                                <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                                    <a class="nav-item nav-link active" id="custom-nav-pm10-tab" data-toggle="tab" href="#custom-nav-pm10" role="tab" aria-controls="custom-nav-pm10"
+                                        aria-selected="true">PM10</a>
+                                    <a class="nav-item nav-link" id="custom-nav-pm25-tab" data-toggle="tab" href="#custom-nav-pm25" role="tab" aria-controls="custom-nav-pm25"
+                                        aria-selected="false">PM25</a>
+                                    <a class="nav-item nav-link" id="custom-nav-no2-tab" data-toggle="tab" href="#custom-nav-no2" role="tab" aria-controls="custom-nav-no2"
+                                        aria-selected="false">NO2</a>
+                                    <a class="nav-item nav-link" id="custom-nav-o3-tab" data-toggle="tab" href="#custom-nav-o3" role="tab" aria-controls="custom-nav-o3"
+                                        aria-selected="false">O3</a>
+                                    <a class="nav-item nav-link" id="custom-nav-co2-tab" data-toggle="tab" href="#custom-nav-co2" role="tab" aria-controls="custom-nav-co2"
+                                        aria-selected="false">CO2</a>
+                                    <a class="nav-item nav-link" id="custom-nav-so2-tab" data-toggle="tab" href="#custom-nav-so2" role="tab" aria-controls="custom-nav-so2"
+                                        aria-selected="false">SO2</a>
+                                </div>
+                            </nav>
+                            <div class="tab-content pl-3 pt-2" id="nav-tabContent">
+                                <div class="tab-pane fade show active" id="custom-nav-pm10" role="tabpanel" aria-labelledby="custom-nav-home-tab">
+                                    <div class="au-card-inner">
+                                        <canvas id="pm10_line_chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="tab-pane fade" id="custom-nav-pm25" role="tabpanel" aria-labelledby="custom-nav-pm25-tab">
+                                    <div class="au-card-inner">
+                                        <canvas id="pm10_line_chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="tab-pane fade" id="custom-nav-no2" role="tabpanel" aria-labelledby="custom-nav-no2-tab">
+                                    <div class="au-card-inner">
+                                        <canvas id="air_line_chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="tab-pane fade" id="custom-nav-o3" role="tabpanel" aria-labelledby="custom-nav-o3-tab">
+                                    <div class="au-card-inner">
+                                        <canvas id="air_line_chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="tab-pane fade" id="custom-nav-co2" role="tabpanel" aria-labelledby="custom-nav-co2-tab">
+                                    <div class="au-card-inner">
+                                        <canvas id="air_line_chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="tab-pane fade" id="custom-nav-so2" role="tabpanel" aria-labelledby="custom-nav-so2-tab">
+                                    <div class="au-card-inner">
+                                        <canvas id="air_line_chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div> -->
+
                         </div>
                     </div>
                 </div>
@@ -73,7 +126,7 @@
                     <div class="au-card m-b-30">
                         <div class="au-card-inner">
                             <h3 class="title-2 m-b-40">Air Quality After COVID19</h3>
-                            <canvas id="stock_bar_chart"></canvas>
+                            <canvas id="covid_team_chart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -92,7 +145,7 @@ $(function() {
     list_tr_html_str = `<tr>
                         <td></td>
                     </tr>`;
-
+    
     $('#btn_search').on('click', function(event) {
 
         event.preventDefault();
@@ -159,6 +212,7 @@ $(function() {
                 for (var idx = 0; idx < data.length; idx++) { 
                     var tr = $(station_list_tr_html_str);
                     tr.attr('data-stn', data[idx].stn_nm)
+                    tr.attr('data-nat', data[idx].nation)
                     var tds = tr.find('td');
                     tds.each(function(i, td) { 
                         $(td).text(data[idx][station_list_td_names[i]])
@@ -178,146 +232,467 @@ $(function() {
         event.stopPropagation();
 
         var key = $(this).attr('data-stn');
-        // alert(tr.attr('data-stn'));
-
+        var key2 = $(this).attr('data-nat');
         $.ajax({
             "url": "/dashboard/detail/" + key,
             "method": "GET",
             "success": function(data, status, xhr) {
-                show_chart(data) 
-                },                
+                // alert(data)
+
+                var labels = []
+                var pm10 = [];
+                var one_year_pm10 = [];
+                var current_year = null;
+                var prev_date = new Date(data[0].obs_dt);
+                
+                var ld = new Date("2019-01-01")
+                for (var ldi = 0; ldi < 365; ldi++) {
+                    labels.push( (ld.getMonth() + 1) + "-" + ld.getDate() );
+                    ld.setDate(ld.getDate() + 1);
+                }
+
+                var fd = new Date(prev_date.getYear() + 1900, 0, 1);
+                while (true) {
+                    if ( prev_date.getYear() == fd.getYear() && prev_date.getMonth() == fd.getMonth() && prev_date.getDate() == fd.getDate()) break;
+                    one_year_pm10.push(-1);
+                    fd.setDate(fd.getDate() + 1)
+                    
+                }
+                prev_date = prev_date.setDate(prev_date.getDate() - 1);
+
+                for (var idx = 0; idx < data.length; idx++) {
+                    d = new Date(new Date(data[idx].obs_dt));
+                    year = d.getYear() + 1900
+                    //month = parseInt(data[idx].obs_dt.substring(5, 7));
+                    //day = parseInt(data[idx].obs_dt.substring(8, 10));
+                    if (current_year == null) {
+                        current_year = year
+                    }
+
+                    if (current_year != year) {
+                        pm10.push(one_year_pm10);
+                        current_year = year;
+                        one_year_pm10 = [];
+                    }
+
+                    
+                    gap = (d - prev_date) / 1000 / 60 / 60 / 24;
+
+                    if (gap == 0) {
+                        //continue;
+                        //do nothing
+                    } else if (d.getMonth() == 1 && d.getDate() == 29) {
+                        // do nothing
+                    } else if (gap == 1) {
+                        one_year_pm10.push(parseInt(data[idx].pm10));
+                    } else {
+                        var i = 0
+                        for (i = 0; i < gap - 1; i++) {
+                            
+                            one_year_pm10.push(-1);
+                        }
+                        one_year_pm10.push(parseInt(data[idx].pm10));
+                        
+                    }
+
+                    prev_date = d;
+
+                }
+
+                // alert(labels);
+                show_pm10_line_chart(labels, pm10)
+                },
             "error": function(xhr, status, err) {
                 alert(err);
             }
         });
 
-    // chart
-        function show_chart(data) {
-            var labels = []
-            var pm10 = []
-            var pm25 = []
+        // covid_line_chart
 
-            for (var i = 0; i < data[0].stats.length; i++) {
-                labels.push(data[0].stats[i][1]);
-                pm10.push(data[0].stats[i][7]);
-                pm25.push(data[0].stats[i][8]);
+        $.ajax({
+            "url": "/dashboard/covid/" + key2,
+            "method": "GET",
+            "success": function(data, status, xhr) {
+                // alert(data)
+
+                // var labels = []                
+                // var ld = new Date("2019-01-01")
+                // for (var ldi = 0; ldi < 365; ldi++) {
+                //     labels.push( (ld.getMonth() + 1) + "-" + ld.getDate() );
+                //     ld.setDate(ld.getDate() + 1);
+                // }
+                show_team_chart(data)
+                
+            },
+            "error": function(xhr, status, err) {
+                alert(err);
             }
+        });
+    })
 
-
-            // for (var i = 0; i < data[0].stats.length; i++) {
-            //     labels.push(data[0].stats[i][1]);   // 날짜 목록
-            //     y_2015.push(data[0].stats[i][2]); // pm10
-            //     y_2016.push(data[0].stats[i][3]); // pm10
-            //     y_2017.push(data[0].stats[i][4]); // pm10
-            //     y_2018.push(data[0].stats[i][5]); // pm10
-            //     y_2019.push(data[0].stats[i][6]); // pm10
-            //     y_2020.push(data[0].stats[i][7]); // pm10
-            // }
-
-            show_air_line_chart(labels, [pm10, pm25]);
-            // show_stock_bar_chart(labels, [amount_list]);
-        }
-    });
-    
-    var line_chart = null;
-    function show_air_line_chart(labels, datasets){
-        //line chart
-        var ctx = $('#air_line_chart'); // 그래프가 표시될 HTML 요소
-        if (ctx) {
-        ctx.height = 150;
+    // chart
+    function show_team_chart(data) {
+        var labels = []
+        var dataset = []
         
+        // 반복문 내부만 일부 수정했습니다.
+        for (var i = 0; i < data.length; i++) {
+            labels.push(data[i]['stdday']);   // 날짜 목록
+            //def_cnt.push(data[i][1]);
+            dataset.push(data[i]['nat_def_cnt']);
+        }
+
+        show_covid_team_chart(labels, dataset);
+    };
+
+
+    var line_chart = null;
+    // function show_pm10_line_chart(labels, datasets){
+    //     //line chart
+    //     var ctx = $('#pm10_line_chart'); // 그래프가 표시될 HTML 요소
+    //     if (ctx) {
+    //     ctx.height = 50;
+        
+    //     if (line_chart) {                 // 기존 차트를 삭제
+    //         line_chart.destroy();
+    //     }
+
+    //     line_chart = new Chart(ctx, {     // my_chart -->> line_chart
+    //         type: 'line',
+    //         data: {     
+    //         labels: labels,   // x축
+    //         defaultFontFamily: "Poppins",
+    //         datasets: [{           // y축
+    //             // label: "2014년",
+    //             // data: datasets[1],
+    //             // backgroundColor: 'transparent',
+    //             // borderColor: 'rgba(220,53,69,0.75)',
+    //             // borderWidth: 3,
+    //             // pointStyle: 'circle',
+    //             // pointRadius: 3,
+    //             // pointBorderColor: 'transparent',
+    //             // pointBackgroundColor: 'rgba(220,53,69,0.75)', // 색상을 포함해서 다른 속성들을 다르게 하면 각 년도별 데이터가 구분되어 표시될 것 같습니다.
+    //             // }
+    //             // ,
+    //             // {           // y축
+    //             // label: "2015년",
+    //             // data: datasets[2],
+    //             // backgroundColor: 'transparent',
+    //             // borderColor: 'rgba(220,53,69,0.75)',
+    //             // borderWidth: 3,
+    //             // pointStyle: 'circle',
+    //             // pointRadius: 3,
+    //             // pointBorderColor: 'transparent',
+    //             // pointBackgroundColor: 'rgba(220,53,69,0.75)',
+    //             // },
+    //             // {           // y축
+    //             label: "2020년",
+    //             data: datasets[7],
+    //             backgroundColor: 'transparent',
+    //             borderColor: 'rgba(220,53,69,0.75)',
+    //             borderWidth: 3,
+    //             pointStyle: 'circle',
+    //             pointRadius: 3,
+    //             pointBorderColor: 'transparent',
+    //             pointBackgroundColor: 'rgba(220,53,69,0.75)',
+    //             },
+    //             {
+    //             label: "2016년",
+    //             data: datasets[3],
+    //             backgroundColor: 'transparent',
+    //             borderColor: 'rgba(99, 128, 151, 1)',
+    //             borderWidth: 3,
+    //             pointStyle: 'circle',
+    //             pointRadius: 3,
+    //             pointBorderColor: 'transparent',
+    //             pointBackgroundColor: 'rgba(99, 128, 151, 1)',
+    //             },
+    //             {           // y축
+    //             label: "2017년",
+    //             data: datasets[4],
+    //             backgroundColor: 'transparent',
+    //             borderColor: 'rgba(99, 128, 151, 1)',
+    //             borderWidth: 3,
+    //             pointStyle: 'circle',
+    //             pointRadius: 3,
+    //             pointBorderColor: 'transparent',
+    //             pointBackgroundColor: 'rgba(99, 128, 151, 1)',
+    //             },
+    //             {           // y축
+    //             label: "2018년",
+    //             data: datasets[5],
+    //             backgroundColor: 'transparent',
+    //             borderColor: 'rgba(99, 128, 151, 1)',
+    //             borderWidth: 3,
+    //             pointStyle: 'circle',
+    //             pointRadius: 3,
+    //             pointBorderColor: 'transparent',
+    //             pointBackgroundColor: 'rgba(99, 128, 151, 1)',
+    //             },
+    //             {           // y축
+    //             label: "2019년",
+    //             data: datasets[6],
+    //             backgroundColor: 'transparent',
+    //             borderColor: 'rgba(99, 128, 151, 1)',
+    //             borderWidth: 3,
+    //             pointStyle: 'circle',
+    //             pointRadius: 3,
+    //             pointBorderColor: 'transparent',
+    //             pointBackgroundColor: 'rgba(99, 128, 151, 1)',
+    //             }
+    //         ]
+    //         },
+    //         options: {
+    //         responsive: true,
+    //         tooltips: {
+    //             mode: 'index',
+    //             titleFontSize: 12,
+    //             titleFontColor: '#000',
+    //             bodyFontColor: '#000',
+    //             backgroundColor: '#fff',
+    //             titleFontFamily: 'Poppins',
+    //             bodyFontFamily: 'Poppins',
+    //             cornerRadius: 3,
+    //             intersect: false,
+    //         },
+    //         legend: {
+    //             display: false,
+    //             labels: {
+    //             usePointStyle: true,
+    //             fontFamily: 'Poppins',
+    //             },
+    //         },
+    //         scales: {
+    //             xAxes: [{
+    //             display: true,
+    //             gridLines: {
+    //                 display: false,
+    //                 drawBorder: false
+    //             },
+    //             scaleLabel: {
+    //                 display: false,
+    //                 labelString: 'Month'
+    //             },
+    //             ticks: {
+    //                 fontFamily: "Poppins"
+    //             }
+    //             }],
+    //             yAxes: [{
+    //             display: true,
+    //             gridLines: {
+    //                 display: false,
+    //                 drawBorder: false
+    //             },
+    //             scaleLabel: {
+    //                 display: true,
+    //                 labelString: 'Value',
+    //                 fontFamily: "Poppins"
+
+    //             },
+    //             ticks: {
+    //                 fontFamily: "Poppins"
+    //             }
+    //             }]
+    //         },
+    //         title: {
+    //             display: false,
+    //             text: 'Normal Legend'
+    //         }
+    //         }
+    //     });
+    //     }
+    // }
+
+
+
+    function show_pm10_line_chart(labels, datasets){
+        var ctx = $('#pm10_line_chart');
+        if (ctx) {
+        ctx.height = 50;
+
         if (line_chart) {                 // 기존 차트를 삭제
             line_chart.destroy();
         }
 
-        line_chart = new Chart(ctx, {     // my_chart -->> line_chart
+        var line_chart = new Chart(ctx, {
             type: 'line',
             data: {
-            labels: labels,   // x축
+            labels: labels,
             defaultFontFamily: "Poppins",
-            datasets: [{           // y축
-                label: "Close by Day",
-                data: datasets[0],
-                backgroundColor: 'transparent',
-                borderColor: 'rgba(220,53,69,0.75)',
-                borderWidth: 3,
-                pointStyle: 'circle',
-                pointRadius: 3,
-                pointBorderColor: 'transparent',
-                pointBackgroundColor: 'rgba(220,53,69,0.75)',
-                },{           // y축
-                label: "start by Day",
-                data: datasets[1],
-                backgroundColor: 'transparent',
-                borderColor: 'rgba(40,167,69,0.75)',
-                borderWidth: 3,
-                pointStyle: 'circle',
-                pointRadius: 3,
-                pointBorderColor: 'transparent',
-                pointBackgroundColor: 'rgba(40,167,69,0.75)',
-                }]
+            datasets: [
+                {
+                label: "2020년",
+                borderColor: "rgba(220,53,69,0.75)",
+                borderWidth: "3",
+                backgroundColor: "rgba(0,0,0,0)",
+                data: datasets[7]
+                },
+                {
+                label: "2019년",
+                borderColor: "rgba(99, 128, 151, 1)",
+                borderWidth: "1",
+                backgroundColor: "rgba(0,0,0,0)",
+                data: datasets[6]
+                },
+                {
+                label: "2018년",
+                borderColor: "rgba(99, 128, 151, 1)",
+                borderWidth: "1",
+                backgroundColor: "rgba(0,0,0,0)",
+                data: datasets[5]
+                },
+                {
+                label: "2017년",
+                borderColor: "rgba(99, 128, 151, 1)",
+                borderWidth: "1",
+                backgroundColor: "rgba(0,0,0,0)",
+                data: datasets[4]
+                },
+                {
+                label: "2016년",
+                borderColor: "rgba(99, 128, 151, 1)",
+                borderWidth: "1",
+                backgroundColor: "rgba(0,0,0,0)",
+                data: datasets[3]
+                }
+            ]
             },
             options: {
+            legend: {
+                position: 'top',
+                labels: {
+                fontFamily: 'Poppins'
+                }
+
+            },
             responsive: true,
             tooltips: {
                 mode: 'index',
-                titleFontSize: 12,
-                titleFontColor: '#000',
-                bodyFontColor: '#000',
-                backgroundColor: '#fff',
-                titleFontFamily: 'Poppins',
-                bodyFontFamily: 'Poppins',
-                cornerRadius: 3,
-                intersect: false,
+                intersect: false
             },
-            legend: {
-                display: false,
-                labels: {
-                usePointStyle: true,
-                fontFamily: 'Poppins',
-                },
+            hover: {
+                mode: 'nearest',
+                intersect: true
             },
             scales: {
                 xAxes: [{
-                display: true,
-                gridLines: {
-                    display: false,
-                    drawBorder: false
-                },
-                scaleLabel: {
-                    display: false,
-                    labelString: 'Month'
-                },
                 ticks: {
                     fontFamily: "Poppins"
+
                 }
                 }],
                 yAxes: [{
-                display: true,
-                gridLines: {
-                    display: false,
-                    drawBorder: false
-                },
-                scaleLabel: {
-                    display: true,
-                    labelString: 'Value',
-                    fontFamily: "Poppins"
-
-                },
                 ticks: {
+                    beginAtZero: true,
                     fontFamily: "Poppins"
                 }
                 }]
-            },
-            title: {
-                display: false,
-                text: 'Normal Legend'
             }
+
             }
         });
         }
     }
+
+
+
+
+
+
+    var team_chart = null;
+    function show_covid_team_chart(labels, datasets){
+        //line chart
+        var ctx = $('#covid_team_chart'); // 그래프가 표시될 HTML 요소
+
+        if (ctx) {
+            ctx.height = 50;
+
+            if (team_chart) {                 // 기존 차트를 삭제
+                team_chart.destroy();
+            }
+
+            team_chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    type: 'line',
+                    defaultFontFamily: 'Poppins',
+                    datasets: [{
+                    data: datasets,
+                    label: "Covid Def Cnt",
+                    backgroundColor: 'rgba(0,103,255,.15)',
+                    borderColor: 'rgba(0,103,255,0.5)',
+                    borderWidth: 3.5,
+                    pointStyle: 'circle',
+                    pointRadius: 1,
+                    pointBorderColor: 'transparent',
+                    pointBackgroundColor: 'rgba(0,103,255,0.5)',
+                    },]
+                },
+                options: {
+                    responsive: true,
+                    tooltips: {
+                    mode: 'index',
+                    titleFontSize: 12,
+                    titleFontColor: '#000',
+                    bodyFontColor: '#000',
+                    backgroundColor: '#fff',
+                    titleFontFamily: 'Poppins',
+                    bodyFontFamily: 'Poppins',
+                    cornerRadius: 3,
+                    intersect: false,
+                    },
+                    legend: {
+                    display: false,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        fontFamily: 'Poppins',
+                    },
+                
+                
+                    },
+                    scales: {
+                    xAxes: [{
+                        display: true,
+                        gridLines: {
+                        display: false,
+                        drawBorder: false
+                        },
+                        scaleLabel: {
+                        display: false,
+                        labelString: 'Month'
+                        },
+                        ticks: {
+                        fontFamily: "Poppins"
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        gridLines: {
+                        display: false,
+                        drawBorder: false
+                        },
+                        scaleLabel: {
+                        display: true,
+                        labelString: 'Value',
+                        fontFamily: "Poppins"
+                        },
+                        ticks: {
+                        fontFamily: "Poppins"
+                        }
+                    }]
+                    },
+                    title: {
+                    display: false,
+                    }
+                }
+            });
+        }
+
+    }
 });
+
     // end chart
 
 // -------------------------------- module indentation
